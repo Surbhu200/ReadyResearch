@@ -38,8 +38,10 @@ security = HTTPBearer()
 
 app = FastAPI()
 
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
+# Create a router without an extra /api prefix.
+# Vercel already mounts this file at /api, so routes here should be defined
+# without an additional /api segment (e.g. "/health", "/auth/login").
+api_router = APIRouter(prefix="")
 
 # ==================== HELPERS ====================
 
