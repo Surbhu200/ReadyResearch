@@ -159,13 +159,18 @@ async def login(user_input: UserLogin):
 # Include the router
 app.include_router(api_router)
 
-# THE FIX: Using exact origins instead of "*" so allow_credentials works.
+# CORS: allow local dev + production frontend (set in Vercel env as FRONTEND_URL or CORS_ORIGINS).
+_cors_origins = [
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+]
+if os.environ.get("FRONTEND_URL"):
+    _cors_origins.append(os.environ["FRONTEND_URL"].rstrip("/"))
+if os.environ.get("CORS_ORIGINS"):
+    _cors_origins.extend(o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip())
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8081",
-        "http://127.0.0.1:8081"
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

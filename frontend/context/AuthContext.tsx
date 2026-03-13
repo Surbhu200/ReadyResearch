@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:8000';
 
 interface User {
   id: string;
@@ -72,18 +72,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Login failed');
+      let message = `Login failed (${response.status})`;
+      try {
+        const body = await response.json();
+        const detail = body?.detail;
+        if (typeof detail === 'string') message = detail;
+        else if (Array.isArray(detail) && detail.length) message = detail.map((e: { msg?: string }) => e?.msg || JSON.stringify(e)).join('. ');
+        else if (detail?.message) message = detail.message;
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) message = text.slice(0, 200);
+        } catch {}
+      }
+      throw new Error(message);
     }
 
     const data = await response.json();
+    if (!data?.access_token || !data?.user) {
+      throw new Error('Invalid response from server');
+    }
     await AsyncStorage.setItem('auth_token', data.access_token);
     setToken(data.access_token);
     setUser(data.user);
   };
 
   const register = async (email: string, password: string, displayName: string, phone?: string) => {
-    const response = await fetch(`${API_URL}/api/auth/register`, {
+    const url = `${API_URL}/api/auth/register`;
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -97,11 +113,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Registration failed');
+      let message = `Registration failed (${response.status})`;
+      try {
+        const body = await response.json();
+        const detail = body?.detail;
+        if (typeof detail === 'string') message = detail;
+        else if (Array.isArray(detail) && detail.length) message = detail.map((e: { msg?: string }) => e?.msg || JSON.stringify(e)).join('. ');
+        else if (detail?.message) message = detail.message;
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) message = text.slice(0, 200);
+        } catch {}
+      }
+      throw new Error(message);
     }
 
     const data = await response.json();
+    if (!data?.access_token || !data?.user) {
+      throw new Error('Invalid response from server');
+    }
     await AsyncStorage.setItem('auth_token', data.access_token);
     setToken(data.access_token);
     setUser(data.user);

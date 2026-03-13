@@ -27,8 +27,10 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = async () => {
+    setErrorMessage(null);
     if (!displayName.trim() || !email.trim() || !password.trim()) {
       Alert.alert('Missing fields', 'Please fill in all required fields.');
       return;
@@ -49,7 +51,10 @@ export default function RegisterScreen() {
       await register(email.trim(), password, displayName.trim(), phone.trim() || undefined);
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Registration failed', error.message || 'Please try again.');
+      const msg = error?.message || 'Please try again.';
+      setErrorMessage(msg);
+      Alert.alert('Registration failed', msg);
+      if (typeof window !== 'undefined' && window.alert) window.alert(`Registration failed: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -165,6 +170,10 @@ export default function RegisterScreen() {
             )}
           </TouchableOpacity>
 
+          {errorMessage ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          ) : null}
+
           <Text style={styles.terms}>
             By creating an account, you agree to our Terms of Service and Privacy Policy.
           </Text>
@@ -247,6 +256,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorText: {
+    color: '#C00',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 16,
   },
   terms: {
     fontSize: 12,
