@@ -159,7 +159,7 @@ async def login(user_input: UserLogin):
 # Include the router
 app.include_router(api_router)
 
-# CORS: allow local dev + production frontend (set in Vercel env as FRONTEND_URL or CORS_ORIGINS).
+# CORS: local dev + explicit list + any Vercel deployment (*.vercel.app).
 _cors_origins = [
     "http://localhost:8081",
     "http://127.0.0.1:8081",
@@ -171,6 +171,7 @@ if os.environ.get("CORS_ORIGINS"):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=r"^https://[^/]+\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
