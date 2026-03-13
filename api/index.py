@@ -15,16 +15,28 @@ from jose import JWTError, jwt
 import secrets
 import shortuuid
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+# Safely load .env only if it exists (protects Vercel from crashing)
+if (ROOT_DIR / '.env').exists():
+    load_dotenv(ROOT_DIR / '.env')
+
+# Safely get Environment Variables
+MONGO_URL = os.getenv('MONGO_URL')
+DB_NAME = os.getenv('DB_NAME', 'ready-research') # Added a default fallback
+
+if not MONGO_URL:
+    logger.error("🚨 MONGO_URL environment variable is missing!")
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
 
 # JWT Settings
-SECRET_KEY = os.environ.get('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
@@ -39,8 +51,6 @@ security = HTTPBearer()
 app = FastAPI()
 
 # Create a router without an extra /api prefix.
-# Vercel already mounts this file at /api, so routes here should be defined
-# without an additional /api segment (e.g. "/health", "/auth/login").
 api_router = APIRouter(prefix="")
 
 # ==================== HELPERS ====================
@@ -159,15 +169,17 @@ async def login(user_input: UserLogin):
 # Include the router
 app.include_router(api_router)
 
-# CORS: local dev + explicit list + any Vercel deployment (*.vercel.app).
+# CORS: local dev + explicit Vercel domain + fallback regex
 _cors_origins = [
     "http://localhost:8081",
     "http://127.0.0.1:8081",
+    "https://ready-research.vercel.app" # The crucial addition
 ]
-if os.environ.get("FRONTEND_URL"):
-    _cors_origins.append(os.environ["FRONTEND_URL"].rstrip("/"))
-if os.environ.get("CORS_ORIGINS"):
-    _cors_origins.extend(o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip())
+if os.getenv("FRONTEND_URL"):
+    _cors_origins.append(os.getenv("FRONTEND_URL").rstrip("/"))
+if os.getenv("CORS_ORIGINS"):
+    _cors_origins.extend(o.strip() for o in os.getenv("CORS_ORIGINS").split(",") if o.strip())
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -176,10 +188,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
